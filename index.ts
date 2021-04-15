@@ -3,6 +3,10 @@ import axios from "axios";
 import cheerio from "cheerio";
 import { launch } from "puppeteer";
 
+let lastAvailable = false;
+
+const isNotUnavailable = (status: string) => status !== 'Currently unavailable.';
+
 const checkAvailable = async (item: string, url: string) => {
     const browser = await launch({ 
         headless: process.env.HEADLESS === 'true' ,
@@ -19,7 +23,8 @@ const checkAvailable = async (item: string, url: string) => {
 
     console.log({ time: now(), status });
 
-    if (status !== 'Currently unavailable.') {
+    if (isNotUnavailable(status) || lastAvailable) {
+        lastAvailable = isNotUnavailable(status);
         const title = `${item} - Amazon`;
         const message = `${item} is ${status}`;
         await sendNotification(title, message, url);
@@ -35,7 +40,7 @@ const sendNotification = async (title: string, message: string, url: string) => 
     message = encodeURIComponent(message);
     url = encodeURIComponent(url);
 
-    await axios.get(`https://wirepusher.com/send?id=${id}&title=${title}&message=${message}&type=monitoring&action=${url}`).catch(console.warn);
+    await axios.get(`https://wirepusher.com/send?id=${id}&title=${title}&message=${message}&type=amznstck&action=${url}`).catch(console.warn);
 }
 
 
