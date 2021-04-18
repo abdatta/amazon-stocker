@@ -1,7 +1,9 @@
 require('dotenv').config();
-import axios from "axios";
 import cheerio from "cheerio";
-import { launch } from "puppeteer";
+import { launch, Page } from "puppeteer";
+import { notify } from "./notifier";
+// @ts-ignore
+import imgur from "imgur";
 
 let lastAvailable = false;
 
@@ -27,22 +29,18 @@ const checkAvailable = async (item: string, url: string) => {
         lastAvailable = isNotUnavailable(status);
         const title = `${item} - Amazon`;
         const message = `${item} is ${status}`;
-        await sendNotification(title, message, url);
+        const img_url = await getScreenshotLink(page);
+        await notify(title, message, url, img_url);
     }
     await browser.close();
 };
 
-const sendNotification = async (title: string, message: string, url: string) => {
-    if (!process.env.WPUSH_ID) return console.log('No WirePusher ID provided. Couldn\'t notify: ', { title, message, url });
-
-    const id = process.env.WPUSH_ID;
-    title = encodeURIComponent(title);
-    message = encodeURIComponent(message);
-    url = encodeURIComponent(url);
-
-    await axios.get(`https://wirepusher.com/send?id=${id}&title=${title}&message=${message}&type=amznstck&action=${url}`).catch(console.warn);
+const getScreenshotLink = async (page: Page) => {
+    const path = './node_modules/ss.png';
+    await page.screenshot({ path });
+    const json = await imgur.uploadFile(path);
+    return json.link as string;
 }
-
 
 const now = () => new Date().toLocaleDateString('en-IN', {
     dateStyle: 'short',
@@ -58,7 +56,7 @@ const main = () => {
     }
     catch (err) {
         console.error(err);
-        sendNotification('Uncaught exception in amazon stocker!', err?.message || JSON.stringify(err), '');
+        notify('Uncaught exception in amazon stocker!', err?.message || JSON.stringify(err), '');
     }
 }
 
